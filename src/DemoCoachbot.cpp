@@ -7,7 +7,7 @@ class DemoCoachbot : public Coachbot
 
     void setup()
     {
-        drive_robot(50, 50);
+        drive_robot(50, 49);
         set_led(100, 100, 100);
     };
 

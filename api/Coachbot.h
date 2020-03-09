@@ -252,22 +252,18 @@ public:
         // https://www8.cs.umu.se/kurser/5DV122/HT13/material/Hellstrom-ForwardKinematics.pdf
 
         // 0) Convert wheel PWM to speeds
-        double v_l = m_motor_speed_l * m_motor_rate_l / 100 * m_tick_delta_t;
-        double v_r = m_motor_speed_r * m_motor_rate_r / 100 * m_tick_delta_t;
-        // TODO: Not sure if this is the right place to add dt to velocities
-
-        std::cout << v_l << ",  " << v_r << ". " << m_tick_delta_t << std::endl;
-
-        // std::cout << id << ",\t" << x << ",\t" << y << ",\t" << theta << std::endl;
+        double v_l = m_motor_speed_l * m_motor_rate_l / 100;
+        double v_r = m_motor_speed_r * m_motor_rate_r / 100;
 
         double new_x, new_y, new_theta;
+
         if (v_l == v_r)
         {
             // Special case where robot is going straight. If you put this
             // through the full differential drive kinematics, you get 0 in the
             // denominator.
-            double dx = v_l * cos(theta);
-            double dy = v_l * sin(theta);
+            double dx = v_l * cos(theta) * m_tick_delta_t;
+            double dy = v_l * sin(theta) * m_tick_delta_t;
             new_x = x + dx;
             new_y = y + dy;
             new_theta = theta; // Same angle because going straight
@@ -276,8 +272,8 @@ public:
         {
             // 1) Compute R - distance between robot center and ICC
             //    R = l/2 * (v_l+v_r)/(v_r-v_l), where l is distance between wheels
-            double R = m_wheel_dist / 2 *
-                       (v_l + v_r) / (v_r - v_l);
+            double R = (m_wheel_dist / 2) *
+                       ((v_l + v_r) / (v_r - v_l));
 
             // 2) Compute the velocity around the ICC
             //    omega = (v_r-v_l)/l
@@ -286,20 +282,20 @@ public:
             // 3) Compute the ICC (instantaneous center of curvature)
             //    ICC_x = x - R*sin(theta)
             //    ICC_y = y + R*cos(theta)
-            double icc_x = x - R * sin(theta);
-            double icc_y = y + R * cos(theta);
+            double icc_x = x - (R * sin(theta));
+            double icc_y = y + (R * cos(theta));
 
             // 4) Compute new x, y, theta from the above
             //    x' = cos(omega*dt) * (x-ICC_x) + -sin(omega*dt) * (y-ICC_y) + ICC_x
             //    y' = sin(omega*dt) * (x-ICC_x) +  cos(omega*dt) * (y-ICC_y) + ICC_y
             //    theta' = omega * dt + theta
             double omega_dt = omega * m_tick_delta_t;
-            new_x = cos(omega_dt) * (x - icc_x) - sin(omega_dt) * (y - icc_y) + icc_x;
-            new_y = sin(omega_dt) * (x - icc_x) + cos(omega_dt) * (y - icc_y) + icc_y;
+            new_x = (cos(omega_dt) * (x - icc_x)) - (sin(omega_dt) * (y - icc_y)) + icc_x;
+            new_y = (sin(omega_dt) * (x - icc_x)) + (cos(omega_dt) * (y - icc_y)) + icc_y;
             new_theta = omega_dt + theta;
         }
 
-        std::cout << id << ": " << new_x << ", " << new_y << ", " << new_theta << std::endl;
+        // std::cout << id << ": " << new_x << ", " << new_y << ", " << new_theta << std::endl;
 
         return {new_x, new_y, wrap_angle(new_theta)};
     }

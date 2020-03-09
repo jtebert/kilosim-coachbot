@@ -18,7 +18,7 @@ int main(int argc, char *argv[])
     {
         robots[n] = new Kilosim::DemoCoachbot();
         world.add_robot(robots[n]);
-        robots[n]->robot_init((n + 1) * 200, (n + 1) * 200, 0);
+        robots[n]->robot_init((n + 1) * 200, (n + 1) * 200, 1);
     }
 
     // Verify that robots are within World bounds and not overlapping
