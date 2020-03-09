@@ -33,3 +33,7 @@
 
 # Custom
 submodules/
+build/
+.vscode/
+lib/
+bin/

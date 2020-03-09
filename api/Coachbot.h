@@ -1,4 +1,5 @@
 #include <kilosim/Robot.h>
+#include <string>
 
 namespace Kilosim
 {
@@ -169,7 +170,7 @@ protected:
         // Get messages from vector
         std::vector<std::string> return_msgs = m_msg_recv;
         // Clear message queue
-        m_msg_recv = [];
+        m_msg_recv.clear();
         return return_msgs;
     }
 
@@ -181,7 +182,7 @@ protected:
      *
      * @param msg Message to send to all other robots within communication range
      */
-    void send_msg(std::vector<std::string> msg)
+    void send_msg(std::string msg)
     {
         m_msg_send = msg;
     }
@@ -198,8 +199,8 @@ protected:
      */
     void drive_robot(double l, double r)
     {
-        motor_speed_l = l;
-        motor_speed_r = r;
+        m_motor_speed_l = l;
+        m_motor_speed_r = r;
         // Convert these into forward_speed and turn_speed to match Robot/run_controller
     }
 
@@ -254,7 +255,7 @@ public:
         // 1) Compute R - distance between robot center and ICC
         //    R = l/2 * (v_l+v_r)/(v_r-v_l), where l is distance between wheels
         double R = m_wheel_dist / 2 *
-                   (m_motor_speed_l + m_motor_speed_r) / (m_motor_speed_r - m_motor_speed_l);
+                   (v_l + v_r) / (v_r - v_l);
 
         // 2) Compute the velocity around the ICC
         //    omega = (v_r-v_l)/l
@@ -289,6 +290,6 @@ public:
     //     // Increment battery
     //     // Run controller()
     // }
-}
+};
 
 } // namespace Kilosim
