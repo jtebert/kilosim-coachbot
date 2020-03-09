@@ -26,21 +26,21 @@ private:
     double m_motor_speed_r = 0;
     //! Left motor speed (set by drive_robot)
     double m_motor_speed_l = 0;
-    //! Conversion from PWM to speed (1% PWM = this) - left motor
-    double m_motor_rate_l = 10;
-    //! Conversion from PWM to speed (1% PWM = this) - right motor
-    double m_motor_rate_r = 10;
+    //! Conversion from PWM to speed (100% PWM = this mm/s) - left motor
+    double m_motor_rate_l = 500;
+    //! Conversion from PWM to speed (100% PWM = this mm/s) - right motor
+    double m_motor_rate_r = 500;
     // TODO: Figure out actual conversion from PWM to speed (this also assumes its linear)
     // TODO: Add some noise to motor rates in initialization
 
     //! Internal clock (in ticks); starts at 0
     unsigned int m_tick = 0;
 
-    //! Override/set the tick rate (simulation rate) -- 30 ticks/s
-    double m_tick_delta_t = 30;
-
+    // PHYSICAL ROBOT PROPERTIES
     //! Distance between the wheel centers (mm)
     double m_wheel_dist = 100; // 10 cm
+    //! Radius of the robot (mm)
+    double m_radius = 60; // 60 mm (12 cm diameter)
     // TODO: Check on/find out actual wheel distance/separation
 
 protected:
@@ -52,8 +52,6 @@ public:
     double comm_range = 12 * 10 * 5; //  5 bodylengths (default)
 
 private:
-    // TODO: Fill in any private functions as needed
-
     /*!
 	 * Get a void pointer to the message the robot is sending and handle any
 	 * callbacks for successful message transmission
@@ -119,6 +117,11 @@ private:
         loop();
         // Run motor/movement code
         // Possibly set message transmission flags?
+    }
+
+    double get_radius() const
+    {
+        return m_radius;
     }
 
 protected:
@@ -230,8 +233,8 @@ protected:
     double get_clock()
     {
         // Matches the way this is handled by World
-        // (Stored internally as integers to avoid floating point errors)
-        return (double)m_tick / m_tick_delta_t;
+        // (Stored internally as integer to avoid floating point errors)
+        return (double)m_tick * m_tick_delta_t;
     }
 
 public:
@@ -249,47 +252,63 @@ public:
         // https://www8.cs.umu.se/kurser/5DV122/HT13/material/Hellstrom-ForwardKinematics.pdf
 
         // 0) Convert wheel PWM to speeds
-        double v_l = m_motor_speed_l * m_motor_rate_l;
-        double v_r = m_motor_speed_r * m_motor_rate_r;
+        double v_l = m_motor_speed_l * m_motor_rate_l / 100 * m_tick_delta_t;
+        double v_r = m_motor_speed_r * m_motor_rate_r / 100 * m_tick_delta_t;
+        // TODO: Not sure if this is the right place to add dt to velocities
 
-        // 1) Compute R - distance between robot center and ICC
-        //    R = l/2 * (v_l+v_r)/(v_r-v_l), where l is distance between wheels
-        double R = m_wheel_dist / 2 *
-                   (v_l + v_r) / (v_r - v_l);
+        std::cout << v_l << ",  " << v_r << ". " << m_tick_delta_t << std::endl;
 
-        // 2) Compute the velocity around the ICC
-        //    omega = (v_r-v_l)/l
-        double omega = (m_motor_speed_r - m_motor_speed_l) / m_wheel_dist;
+        // std::cout << id << ",\t" << x << ",\t" << y << ",\t" << theta << std::endl;
 
-        // 3) Compute the ICC (instantaneous center of curvature)
-        //    ICC_x = x - R*sin(theta)
-        //    ICC_y = y + R*cos(theta)
-        double icc_x = x - R * sin(theta);
-        double icc_y = y + R * cos(theta);
+        double new_x, new_y, new_theta;
+        if (v_l == v_r)
+        {
+            // Special case where robot is going straight. If you put this
+            // through the full differential drive kinematics, you get 0 in the
+            // denominator.
+            double dx = v_l * cos(theta);
+            double dy = v_l * sin(theta);
+            new_x = x + dx;
+            new_y = y + dy;
+            new_theta = theta; // Same angle because going straight
+        }
+        else
+        {
+            // 1) Compute R - distance between robot center and ICC
+            //    R = l/2 * (v_l+v_r)/(v_r-v_l), where l is distance between wheels
+            double R = m_wheel_dist / 2 *
+                       (v_l + v_r) / (v_r - v_l);
 
-        // 4) Compute new x, y, theta from the above
-        //    x' = cos(omega*dt) * (x-ICC_x) + -sin(omega*dt) * (y-ICC_y) + ICC_x
-        //    y' = sin(omega*dt) * (x-ICC_x) +  cos(omega*dt) * (y-ICC_y) + ICC_y
-        //    theta' = omega * dt + theta
-        double omega_dt = omega * m_tick_delta_t;
-        double new_x = cos(omega_dt) * (x - icc_x) - sin(omega_dt) * (y - icc_y) + icc_x;
-        double new_y = sin(omega_dt) * (x - icc_x) + cos(omega_dt) * (y - icc_y) + icc_y;
-        double new_theta = omega_dt + theta;
+            // 2) Compute the velocity around the ICC
+            //    omega = (v_r-v_l)/l
+            double omega = (v_r - v_l) / m_wheel_dist;
+
+            // 3) Compute the ICC (instantaneous center of curvature)
+            //    ICC_x = x - R*sin(theta)
+            //    ICC_y = y + R*cos(theta)
+            double icc_x = x - R * sin(theta);
+            double icc_y = y + R * cos(theta);
+
+            // 4) Compute new x, y, theta from the above
+            //    x' = cos(omega*dt) * (x-ICC_x) + -sin(omega*dt) * (y-ICC_y) + ICC_x
+            //    y' = sin(omega*dt) * (x-ICC_x) +  cos(omega*dt) * (y-ICC_y) + ICC_y
+            //    theta' = omega * dt + theta
+            double omega_dt = omega * m_tick_delta_t;
+            new_x = cos(omega_dt) * (x - icc_x) - sin(omega_dt) * (y - icc_y) + icc_x;
+            new_y = sin(omega_dt) * (x - icc_x) + cos(omega_dt) * (y - icc_y) + icc_y;
+            new_theta = omega_dt + theta;
+        }
+
+        std::cout << id << ": " << new_x << ", " << new_y << ", " << new_theta << std::endl;
 
         return {new_x, new_y, wrap_angle(new_theta)};
     }
 
-    // TODO: Might need to override some aspects of robot_init, to deal with motor errors
-
-    // TODO: Only need to override this if I change from using m_forward_speed, m_turn_speed, m_motor_command
-    /*!
-     * Override the default setting the robot dynamics
-     */
-    // void robot_controller()
-    // {
-    //     // Increment battery
-    //     // Run controller()
-    // }
+    // IDK what this does but it won't compile without it
+    char *get_debug_info(char *buffer, char *rt)
+    {
+        return buffer;
+    }
 };
 
 } // namespace Kilosim
