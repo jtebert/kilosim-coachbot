@@ -10,7 +10,7 @@ int main(int argc, char *argv[])
 
     Kilosim::Viewer viewer(world);
 
-    int num_robots = 1;
+    int num_robots = 10;
 
     // Create robots and place in world
     std::vector<Kilosim::DemoCoachbot *> robots(num_robots);
@@ -18,13 +18,13 @@ int main(int argc, char *argv[])
     {
         robots[n] = new Kilosim::DemoCoachbot();
         world.add_robot(robots[n]);
-        robots[n]->robot_init((n + 1) * 200, (n + 1) * 200, 1);
+        robots[n]->robot_init((n + 1) * 200, (n + 1) * 200, 1.7);
     }
 
     // Verify that robots are within World bounds and not overlapping
     world.check_validity();
 
-    double trial_duration = 30; // seconds
+    double trial_duration = 300; // seconds
     while (world.get_time() < trial_duration)
     {
         world.step();
