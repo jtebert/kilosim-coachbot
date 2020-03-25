@@ -57,7 +57,10 @@ private:
 	 * callbacks for successful message transmission
 	 * @return Pointer to message to transmit
 	 */
-    void *get_message() {}
+    void *get_tx_message() {
+        // return * m_msg_send;
+        return static_cast<void*>(&m_msg_send);
+    }
 
     /*!
 	 * Determine if another robot is within communication range
