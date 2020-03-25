@@ -29,7 +29,6 @@ INTERFACE
   api
   submodules
 )
-
 target_compile_options(kilosim_coachbot
 INTERFACE
   -g

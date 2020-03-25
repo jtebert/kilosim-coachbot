@@ -8,9 +8,9 @@ int main(int argc, char *argv[])
     Kilosim::World world(
         3000, 3000);
 
-    Kilosim::Viewer viewer(world);
+    //Kilosim::Viewer viewer(world);
 
-    int num_robots = 10;
+    int num_robots = 1;
 
     // Create robots and place in world
     std::vector<Kilosim::DemoCoachbot *> robots(num_robots);
@@ -27,8 +27,9 @@ int main(int argc, char *argv[])
     double trial_duration = 300; // seconds
     while (world.get_time() < trial_duration)
     {
+        printf("stepping\n");
         world.step();
-        viewer.draw();
+        //viewer.draw();
     }
 
     printf("Finished");
