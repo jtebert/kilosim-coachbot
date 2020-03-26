@@ -1,4 +1,5 @@
 #include <kilosim/Robot.h>
+#include <kilosim/Random.h>
 #include <string>
 
 namespace Kilosim
@@ -9,6 +10,17 @@ namespace Kilosim
  * Coachbot/PIswarm API
  */
 
+/*!
+ * Coachbot message data (includes message and UID to avoid message duplication)
+ */
+struct cb_message_t
+{
+	//! Message payload (string; should be max 128 bytes but I'm not checking now)
+	std::string data;
+    //! Unique ID for message, generated when message added to send queue
+    uint32_t uid;
+};
+
 class Coachbot : public Robot
 {
 private:
@@ -17,7 +29,7 @@ private:
      * Buffer of the messages received by the communication protocol but not yet
      * processed by get_msg()\
      */
-    std::vector<std::string> m_msg_recv;
+    std::vector<cb_message_t> m_msg_recv;
 
     //! Message to send to other robots (set by send_msg)
     std::string m_msg_send;
@@ -81,14 +93,27 @@ private:
 	 * This is called by a transmitting robot (tx) to set a flag for calling the
 	 * message success callback (message_tx_success)
 	 */
-    void received() {}
+    void received() {
+        // TODO: Not sure if I need this (called by sender when message successfully sent`)
+    }
 
     /*!
 	 * This is called when a robot (rx) receives a message. It calls some
 	 * message handling function (e.g., message_rx) specific to the
 	 * implementation.
 	 */
-    void receive_msg(void *msg, double dist) {}
+    void receive_msg(void *msg, double dist) {
+        cb_message_t &rx_msg = *(static_cast<cb_message_t*>(msg));
+        uint32_t rx_uid = rx_msg.uid;
+        // Check if the message is a duplicate by using its UID
+        for (unsigned int i = 0; i < m_msg_recv.size(); i++) {
+            if (m_msg_recv[i].uid == rx_uid) {
+                return;
+            }
+        }
+        // Add the message to the buffer if UID not found
+        m_msg_recv.push_back(rx_msg);
+    }
 
     /*!
 	 * Perform any one-time initialization for the specific implementation of
@@ -173,11 +198,14 @@ protected:
      */
     std::vector<std::string> get_msg()
     {
-        // Get messages from vector
-        std::vector<std::string> return_msgs = m_msg_recv;
+        // Get the string message data from the incoming message buffer
+        std::vector<std::string> str_msgs(m_msg_recv.size());
+        for (unsigned int i = 0; i < m_msg_recv.size(); i++) {
+            str_msgs[i] = m_msg_recv[i].data;
+        }
         // Clear message queue
         m_msg_recv.clear();
-        return return_msgs;
+        return str_msgs;
     }
 
     /*!
@@ -190,6 +218,12 @@ protected:
      */
     void send_msg(std::string msg)
     {
+        cb_message_t out_msg;
+        out_msg.data = msg;
+        // Assign a random 32-bit integer to tag the message
+        // Yeah, this isn't cryptographically secure or anything; it doesn't
+        // need to be. It's a simulator-specific hack
+        out_msg.uid = uniform_rand_int(0, UINT32_MAX);
         m_msg_send = msg;
     }
 
